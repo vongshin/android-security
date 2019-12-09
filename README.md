@@ -1,12 +1,43 @@
 # android-security
-Android 密钥库系统使用
-利用 Android 密钥库系统，您可以在容器中存储加密密钥，从而提高从设备中提取密钥的难度。在密钥进入密钥库后，可以将它们用于加密操作，而密钥材料仍不可导出。此外，它提供了密钥使用的时间和方式限制措施。
+## AndroidKeyStore加密保存敏感信息
 
-使用过程
+#### 快速配置
+```java
+implementation 'de.yellowhing.security:security:0.0.4'
+```
 
-1：生成非对称密钥保存在androidkeystore
+### 使用说明
+##### 1、小数据量加密（100多byte以内）
+```java
+String dataStr = "abcdefg12222";
+byte[] dataByte = dataStr.getBytes();
+//加密使用默认密钥别名
+String encryptData0 = AndroidCrypt.encrypt(data)
 
-2：使用公钥加密
+//加密使用指定密钥别名
+byte[] encryptData1 = AndroidCrypt.encrypt(dataByte, "key_name")
 
-3：使用私钥解密
+//解密使用默认密钥别名
+String encryptData2 = AndroidCrypt.decrypt(encryptData0)
+
+//解密使用指定密钥别名
+byte[] encryptData3 = AndroidCrypt.encrypt(encryptData1, "key_name")
+```
+##### 2、大数据量加密 
+```java
+String dataStr = "abcdefg...12222";
+byte[] dataByte = dataStr.getBytes();
+//加密使用默认密钥别名
+String encryptData0 = AndroidCrypt.encryptByTls(data)
+
+//加密使用指定密钥别名
+byte[] encryptData1 = AndroidCrypt.encryptByTls(dataByte, "key_name")
+
+//解密使用默认密钥别名
+String encryptData2 = AndroidCrypt.decryptByTls(encryptData0)
+
+//解密使用指定密钥别名
+byte[] encryptData3 = AndroidCrypt.encryptByTls(encryptData1, "key_name")
+```
+<p>加密方式说明：大数据加密，先随机生成个对称密钥，使用对称密钥对数据进行加密，再用androidkeystore密钥生成的非对称密钥对随机生成的对称密钥加密，解密时，先解密出对称密钥，再使用对称密钥，解密数据。</p>
 
