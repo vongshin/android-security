@@ -49,10 +49,9 @@ public class AESUtil {
     }
 
     public static SecretKey generateAESKey(int kenLen) throws NoSuchAlgorithmException {
-        final int outputKeyLength = kenLen;
         SecureRandom secureRandom = new SecureRandom();
         KeyGenerator keyGenerator = KeyGenerator.getInstance(ALGORITHM);
-        keyGenerator.init(outputKeyLength, secureRandom);
+        keyGenerator.init(kenLen, secureRandom);
         return keyGenerator.generateKey();
     }
 }

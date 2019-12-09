@@ -1,33 +1,44 @@
 package de.yellowhing.security.app;
 
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import java.security.KeyStoreException;
-import de.yellowhing.security.SecureCipher;
+import androidx.appcompat.app.AppCompatActivity;
+import javax.crypto.SecretKey;
+
+import de.yellowhing.security.AndroidCrypt;
+import de.yellowhing.security.utils.AESUtil;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
-    SecureCipher secureCipher;
+    String data = "afagwadas";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        try {
-            secureCipher = new SecureCipher(this);
-        } catch (KeyStoreException e) {
-            e.printStackTrace();
-        }
+
         findViewById(R.id.btn_tap).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 try {
-                    String encryptText = secureCipher.encrypt("huangxingzhan666999");
-                    Log.d(TAG, "encryptText: "+encryptText);
-                    String  decryptText = secureCipher.decrypt(encryptText);
-                    Log.d(TAG, "decryptText: "+decryptText);
-                } catch (KeyStoreException e) {
+                    SecretKey secretKey = AESUtil.generateAESKey();
+                    byte[] p = secretKey.getEncoded();
+                    byte[] ep = AndroidCrypt.encrypt(p);
+                    byte[] dp = AndroidCrypt.decrypt(ep);
+                    byte[] aep = AESUtil.encrypt(p, data.getBytes());
+                    byte[] adp = AESUtil.decrypt(dp, aep);
+                    Log.d(TAG, "onCreate: "+ new String(adp));
+
+                    String a = AndroidCrypt.encryptByTls(data);
+                    Log.d(TAG, "onCreate: a =  "+a);
+                    String b = AndroidCrypt.decryptByTls(a);
+                    Log.d(TAG, "onCreate: b =  "+b);
+                    String c = AndroidCrypt.encrypt("189shfshafka");
+                    Log.d(TAG, "onCreate: c = "+c);
+                    String d = AndroidCrypt.decrypt(c);
+                    Log.d(TAG, "onCreate: d = "+ d);
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
             }

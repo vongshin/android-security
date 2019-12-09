@@ -1,11 +1,7 @@
 package de.yellowhing.security.key;
 
 import android.content.Context;
-import android.os.Build;
 import android.security.KeyPairGeneratorSpec;
-import android.security.keystore.KeyProperties;
-import android.support.annotation.RequiresApi;
-
 import java.math.BigInteger;
 import java.security.KeyPairGenerator;
 import java.security.KeyStoreException;
