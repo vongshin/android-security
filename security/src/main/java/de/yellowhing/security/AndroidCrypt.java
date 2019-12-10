@@ -1,13 +1,11 @@
 package de.yellowhing.security;
-
-import android.app.AppGlobals;
 import android.content.Context;
 import android.os.Build;
 import android.util.Base64;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
+import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
@@ -18,40 +16,38 @@ import javax.crypto.CipherInputStream;
 import javax.crypto.CipherOutputStream;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
+
+import de.yellowhing.security.charset.Charsets;
 import de.yellowhing.security.key.AndroidKeyStore;
 import de.yellowhing.security.key.AndroidKeyStoreFactory;
 import de.yellowhing.security.utils.AESUtil;
 
-/**
- * @author huangxingzhan
- * @date 2019/12/9
- */
-public abstract class AndroidCrypt {
-    private final static Charset UTF_8 = Charset.forName("UTF-8");
+public class AndroidCrypt {
     private final static String ALIAS_SUFFIX = "_android_key_store";
+    private final AndroidKeyStore androidKeyStore;
+    private String alias;
 
-    private AndroidCrypt(){}
-    /**
-     * Encrypt the raw bytes
-     * @param data raw data
-     * @return encrypt data
-     */
-    public static byte[] encrypt(byte[] data){
-        return encrypt(data, getDefaultAlias());
+    public AndroidCrypt(Context context) throws KeyStoreException {
+        this(context, context.getPackageName()+ALIAS_SUFFIX);
+    }
+
+    public AndroidCrypt(Context context, String alias) throws KeyStoreException{
+        this.alias = alias;
+        try {
+            this.androidKeyStore = AndroidKeyStoreFactory.getInstance(context);
+        } catch (Exception e) {
+            throw new KeyStoreException();
+        }
     }
     /**
      * Encrypt the raw bytes
      * @param data raw data
-     * @param alias key alias
      * @return encrypt data
      */
-    public static byte[] encrypt(byte[] data, String alias){
+    public byte[] encrypt(byte[] data) throws KeyStoreException{
         try {
-            Context context = AppGlobals.getInitialApplication();
-            AndroidKeyStore androidKeyStore = AndroidKeyStoreFactory.getInstance(context);
             androidKeyStore.createKeyPairIfInvalid(alias);
-            PublicKey publicKey;
-            publicKey = androidKeyStore.getKeyStore().getCertificate(alias).getPublicKey();
+            PublicKey publicKey = androidKeyStore.getKeyStore().getCertificate(alias).getPublicKey();
             Cipher cipher = createCipher();
             cipher.init(Cipher.ENCRYPT_MODE, publicKey);
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -60,29 +56,17 @@ public abstract class AndroidCrypt {
             cipherOutputStream.close();
             return outputStream.toByteArray();
         } catch (Exception e) {
-            e.printStackTrace();
-            throw new UnsupportedOperationException(e);
+            throw new KeyStoreException(e);
         }
-    }
-    /**
-     * Decrypt the encrypted bytes
-     * @param data decrypt data
-     * @return raw data
-     */
-    public static byte[] decrypt(byte[] data){
-        return decrypt(data, getDefaultAlias());
     }
 
     /**
      * Decrypt the encrypted bytes
      * @param data decrypt data
-     * @param alias key alias
      * @return raw data
      */
-    public static byte[] decrypt(byte[] data, String alias){
+    public byte[] decrypt(byte[] data) throws KeyStoreException{
         try {
-            Context context = AppGlobals.getInitialApplication();
-            AndroidKeyStore androidKeyStore = AndroidKeyStoreFactory.getInstance(context);
             PrivateKey privateKey = (PrivateKey) androidKeyStore.getKeyStore().getKey(alias, null);
             Cipher cipher = createCipher();
             cipher.init(Cipher.DECRYPT_MODE, privateKey);
@@ -99,26 +83,18 @@ public abstract class AndroidCrypt {
             }
             return bytes;
         } catch (Exception e) {
-            throw new UnsupportedOperationException(e);
+            throw new KeyStoreException(e);
         }
     }
 
-    public static String encrypt(String text){
-        return encrypt(text, getDefaultAlias());
-    }
-
-    public static String encrypt(String text, String alias){
-        byte[] data = encrypt(text.getBytes(UTF_8), alias);
+    public String encrypt(String text) throws KeyStoreException{
+        byte[] data = encrypt(text.getBytes(Charsets.UTF_8));
         return Base64.encodeToString(data, Base64.NO_WRAP);
     }
 
-    public static String decrypt(String encryptedText){
-        return decrypt(encryptedText, getDefaultAlias());
-    }
-
-    public static String decrypt(String encryptedText, String alias){
-        byte[] data = decrypt(Base64.decode(encryptedText, Base64.NO_WRAP), alias);
-        return new String(data, UTF_8);
+    public String decrypt(String encryptedText) throws KeyStoreException{
+        byte[] data = decrypt(Base64.decode(encryptedText, Base64.NO_WRAP));
+        return new String(data, Charsets.UTF_8);
     }
 
     /**
@@ -126,15 +102,11 @@ public abstract class AndroidCrypt {
      * asymmetric-key rsa  encrypt the raw bytes symmetric-key
      * symmetric-key aes  encrypt the raw bytes
      */
-    public static byte[] encryptByTls(byte[] data){
-        return encryptByTls(data, getDefaultAlias());
-    }
-
-    public static byte[] encryptByTls(byte[] data, String alias){
+    public byte[] encryptByTls(byte[] data) throws KeyStoreException{
         try {
             SecretKey secretKey = AESUtil.generateAESKey();
             byte[] encoded = secretKey.getEncoded();
-            byte[] encryptEncoded = encrypt(encoded, alias);
+            byte[] encryptEncoded = encrypt(encoded);
             byte[] encryptData = AESUtil.encrypt(secretKey, data);
             ByteBuffer buffer = ByteBuffer.allocate(Integer.SIZE/Byte.SIZE + encryptEncoded.length + encryptData.length);
             buffer.putInt(encryptEncoded.length)
@@ -142,16 +114,11 @@ public abstract class AndroidCrypt {
                     .put(encryptData);
             return buffer.array();
         }catch (Exception e){
-            e.printStackTrace();
-            throw new UnsupportedOperationException(e);
+            throw new KeyStoreException(e);
         }
     }
 
-    public static byte[] decryptByTls(byte[] encryptedText){
-        return decryptByTls(encryptedText, getDefaultAlias());
-    }
-
-    public static byte[] decryptByTls(byte[] encryptedText, String alias){
+    public byte[] decryptByTls(byte[] encryptedText) throws KeyStoreException{
         try {
             ByteBuffer buffer = ByteBuffer.wrap(encryptedText);
             int keyLen = buffer.getInt();
@@ -159,30 +126,22 @@ public abstract class AndroidCrypt {
             buffer.get(encryptEncoded);
             byte[] encryptData = new byte[buffer.remaining()];
             buffer.get(encryptData);
-            byte[] encoded = decrypt(encryptEncoded, alias);
+            byte[] encoded = decrypt(encryptEncoded);
             return AESUtil.decrypt(encoded, encryptData);
         }catch (Exception e){
             e.printStackTrace();
-            throw new UnsupportedOperationException(e);
+            throw new KeyStoreException(e);
         }
     }
 
-    public static String encryptByTls(String text){
-        return encryptByTls(text, getDefaultAlias());
-    }
-
-    public static String encryptByTls(String text, String alias){
-        byte[] data = encryptByTls(text.getBytes(UTF_8), alias);
+    public String encryptByTls(String text) throws KeyStoreException{
+        byte[] data = encryptByTls(text.getBytes(Charsets.UTF_8));
         return Base64.encodeToString(data, Base64.NO_WRAP);
     }
 
-    public static String decryptByTls(String encryptedText){
-        return decryptByTls(encryptedText, getDefaultAlias());
-    }
-
-    public static String decryptByTls(String encryptedText, String alias){
-        byte[] data = decryptByTls(Base64.decode(encryptedText, Base64.NO_WRAP), alias);
-        return new String(data, UTF_8);
+    public String decryptByTls(String encryptedText) throws KeyStoreException{
+        byte[] data = decryptByTls(Base64.decode(encryptedText, Base64.NO_WRAP));
+        return new String(data, Charsets.UTF_8);
     }
 
     private static Cipher createCipher() throws NoSuchPaddingException, NoSuchAlgorithmException, NoSuchProviderException {
@@ -193,13 +152,5 @@ public abstract class AndroidCrypt {
         } else  {
             throw new UnsupportedOperationException("Not supported yet");
         }
-    }
-
-    /**
-     * @return default alias
-     */
-    private static String getDefaultAlias(){
-        Context context = AppGlobals.getInitialApplication();
-        return context.getPackageName()+ ALIAS_SUFFIX;
     }
 }

@@ -22,21 +22,22 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 try {
+                    AndroidCrypt androidCrypt = new AndroidCrypt(MainActivity.this);
                     SecretKey secretKey = AESUtil.generateAESKey();
                     byte[] p = secretKey.getEncoded();
-                    byte[] ep = AndroidCrypt.encrypt(p);
-                    byte[] dp = AndroidCrypt.decrypt(ep);
+                    byte[] ep = androidCrypt.encrypt(p);
+                    byte[] dp = androidCrypt.decrypt(ep);
                     byte[] aep = AESUtil.encrypt(p, data.getBytes());
                     byte[] adp = AESUtil.decrypt(dp, aep);
                     Log.d(TAG, "onCreate: "+ new String(adp));
 
-                    String a = AndroidCrypt.encryptByTls(data);
+                    String a = androidCrypt.encryptByTls(data);
                     Log.d(TAG, "onCreate: a =  "+a);
-                    String b = AndroidCrypt.decryptByTls(a);
+                    String b = androidCrypt.decryptByTls(a);
                     Log.d(TAG, "onCreate: b =  "+b);
-                    String c = AndroidCrypt.encrypt("189shfshafka");
+                    String c = androidCrypt.encrypt("189shfshafka");
                     Log.d(TAG, "onCreate: c = "+c);
-                    String d = AndroidCrypt.decrypt(c);
+                    String d = androidCrypt.decrypt(c);
                     Log.d(TAG, "onCreate: d = "+ d);
                 } catch (Exception e) {
                     e.printStackTrace();
