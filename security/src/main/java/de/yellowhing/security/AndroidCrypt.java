@@ -25,7 +25,7 @@ import de.yellowhing.security.utils.AESUtil;
 public class AndroidCrypt {
     private final static String ALIAS_SUFFIX = "_android_key_store";
     private final AndroidKeyStore androidKeyStore;
-    private String alias;
+    private final String alias;
 
     public AndroidCrypt(Context context) throws KeyStoreException {
         this(context, context.getPackageName()+ALIAS_SUFFIX);
